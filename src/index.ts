@@ -74,6 +74,70 @@ function MakeID() {
 	return uuid();
 }
 
+async function verifyToken(c: any, next: any) {
+
+	console.log("step 1");
+
+	await c.req;
+
+	console.log("step 2");
+
+	let authErr = createError(
+		"errors.com.epicgames.common.authorization.authorization_failed",
+		`Authorization failed for ${await c.req.url}`,
+		[await c.req.url], 1032, undefined
+	);
+
+	console.log("step 3");
+
+	if (!c.req.header("authorization") || !c.req.header("authorization").startsWith("bearer eg1~")) return c.json(authErr);
+
+	console.log("step 4");
+
+	const token = await c.req.header("authorization").replace("bearer eg1~", "");
+
+	console.log("step 5");
+
+	try {
+
+		console.log("step 1 try");
+
+		const decodedToken: any = await jwt.verify(token, JWT_SECRET);
+
+		console.log("step 2 try");
+
+		if (await accessTokens.find(i => i.token == `eg1~${token}`)) throw new Error("Invalid token.");
+
+		console.log("step 3 try");
+
+		const requser = await mongo.getUser("accountId", decodedToken.sub, ATLAS_KEY);
+
+		console.log("step 4 try");
+
+		if (await requser.banned) return c.json(createError(
+			"errors.com.epicgames.account.account_not_active",
+			"Sorry, your account is inactive and may not login.",
+			[], -1, undefined)
+		);
+
+		console.log("step 5 try");
+
+		await next();
+
+		console.log("step 6 try");
+	} catch {
+
+		console.log("step 1 catch");
+
+		let accessIndex = accessTokens.findIndex(i => i.token == `eg1~${token}`);
+		if (accessIndex != -1) accessTokens.splice(accessIndex, 1);
+
+		console.log("step 2 catch");
+
+		return c.json(authErr);
+	}
+}
+
 function createError(errorCode: string, errorMessage: string, messageVars: string[], numericErrorCode: number, error: any) {
 	return {
 		errorCode: errorCode,
@@ -135,7 +199,7 @@ app.get('/health', (c) => {
 
 app.get('/vaultmp', async (c) => {
 
-	const shouldWork:boolean = c.env.TOKENS.get('shouldWork');
+	const shouldWork: boolean = c.env.TOKENS.get('shouldWork');
 	if (shouldWork) {
 		return c.json({
 			status: 'ok',
@@ -216,7 +280,7 @@ app.post('/account/api/oauth/token', async (c) => {
 			"errors.com.epicgames.common.oauth.invalid_client",
 			"It appears that your Authorization header may be invalid or not present, please verify that you are sending the correct headers.",
 			[], 1011, "invalid_client")
-			console.log("oauth createerror authorization header invalid");
+		console.log("oauth createerror authorization header invalid");
 		return c.json(error, 400);
 	}
 
@@ -260,15 +324,15 @@ app.post('/account/api/oauth/token', async (c) => {
 
 		case 'password':
 
-		console.log("oauth: password");
+			console.log("oauth: password");
 
 			if (!body.username || !body.password) {
 				error = createError(
 					"errors.com.epicgames.common.oauth.invalid_request",
 					"Username/password is required.",
 					[], 1013, "invalid_request")
-					console.log("oauth createerror username/password is required: " + body.username + " " + body.password);
-			return c.json(error, 400);
+				console.log("oauth createerror username/password is required: " + body.username + " " + body.password);
+				return c.json(error, 400);
 			}
 
 			const { username: email, password: password } = body;
@@ -302,25 +366,25 @@ app.post('/account/api/oauth/token', async (c) => {
 			console.log("oauth: email: " + email);
 			console.log("oauth: password: " + password);
 
-				if (requser.password !== body.password) {
-					console.log("oauth: error created: email or password incorrect");
-					return c.json(error, 400);
-				}
+			if (requser.password !== body.password) {
+				console.log("oauth: error created: email or password incorrect");
+				return c.json(error, 400);
+			}
 
-				console.log("oauth: email and password correct");
+			console.log("oauth: email and password correct");
 
 			break;
 
 		case 'refresh_token':
 
-		console.log("oauth: refresh_token");
+			console.log("oauth: refresh_token");
 
 			if (!body.refresh_token) {
 				error = createError(
 					"errors.com.epicgames.common.oauth.invalid_request",
 					"Refresh token is required.",
 					[], 1013, "invalid_request")
-					console.log("oauth createerror refresh token is required");
+				console.log("oauth createerror refresh token is required");
 				return c.json(error, 400);
 			}
 
@@ -339,7 +403,7 @@ app.post('/account/api/oauth/token', async (c) => {
 						"errors.com.epicgames.common.oauth.invalid_request",
 						"Refresh token is invalid.",
 						[], 1013, "invalid_request")
-						console.log("oauth: refresh token invalid");
+					console.log("oauth: refresh token invalid");
 					return c.json(error, 400);
 				}
 
@@ -351,7 +415,7 @@ app.post('/account/api/oauth/token', async (c) => {
 					"errors.com.epicgames.account.auth_token.invalid_refresh_token",
 					`Sorry the refresh token '${refresh_token}' is invalid`,
 					[refresh_token], 18036, "invalid_grant")
-					console.log("oauth: refresh token invalid");
+				console.log("oauth: refresh token invalid");
 				return c.json(error, 400);
 
 			}
@@ -380,7 +444,7 @@ app.post('/account/api/oauth/token', async (c) => {
 				"errors.com.epicgames.common.oauth.unsupported_grant_type",
 				`Unsupported grant type: ${body.grant_type}`,
 				[], 1016, "unsupported_grant_type")
-				console.log("oauth: unsupported grant type");
+			console.log("oauth: unsupported grant type");
 			return c.json(error, 400);
 	}
 
@@ -390,7 +454,7 @@ app.post('/account/api/oauth/token', async (c) => {
 			"errors.com.epicgames.account.account_not_active",
 			"Sorry, your account is inactive and may not login.",
 			[], -1, undefined)
-			console.log("oauth: account not active");
+		console.log("oauth: account not active");
 		return c.json(error, 400);
 	}
 
@@ -512,6 +576,56 @@ app.get('/content/api/pages/*', async (c) => {
 });
 
 //TODO Friends
+
+app.get("/friends/api/v1/*/settings", async (c) => {
+    c.json({});
+});
+
+app.get("/friends/api/v1/*/blocklist", async (c) => {
+    c.json([]);
+});
+
+app.get("/friends/api/public/list/fortnite/*/recentPlayers", async (c) => {
+    c.json([]);
+});
+app.get("/friends/api/public/friends/:accountId", verifyToken, async (c) => {
+    let response:Array<Object> = [];
+
+    const friends = await mongo.getFriends("accountId", c.req.param('accountId'), ATLAS_KEY);
+
+    friends.list.accepted.forEach((acceptedFriend: { accountId: any; created: any; }) => {
+        response.push({
+            "accountId": acceptedFriend.accountId,
+            "status": "ACCEPTED",
+            "direction": "OUTBOUND",
+            "created": acceptedFriend.created,
+            "favorite": false
+        })
+    })
+    
+    friends.list.incoming.forEach((incomingFriend: { accountId: any; created: any; }) => {
+        response.push({
+            "accountId": incomingFriend.accountId,
+            "status": "PENDING",
+            "direction": "INBOUND",
+            "created": incomingFriend.created,
+            "favorite": false
+        })
+    })
+    
+    friends.list.outgoing.forEach((outgoingFriend: { accountId: any; created: any; }) => {
+        response.push({
+            "accountId": outgoingFriend.accountId,
+            "status": "PENDING",
+            "direction": "OUTBOUND",
+            "created": outgoingFriend.created,
+            "favorite": false
+        });
+    });
+
+    c.json(response);
+});
+
 
 //TODO Lightswitch
 
@@ -874,7 +988,134 @@ app.get('/fortnite/api/calendar/v1/timeline', async (c) => {
 
 //TODO User
 
+app.get("/account/api/public/account", async (c) => {
+
+	let response: Array<Object> = [];
+
+	if (typeof c.req.query("accountId") == "string") {
+		let user = await mongo.getUser("accountId", c.req.query("accountId") || "", ATLAS_KEY)
+
+
+		if (user) {
+			response.push({
+				id: user.accountId,
+				displayName: user.username,
+				externalAuths: {}
+			});
+		}
+	}
+
+	if (Array.isArray(c.req.query("accountId"))) {
+		let users = await mongo.getUser("accountId", c.req.query("accountId") || "", ATLAS_KEY)
+
+		if (users) {
+			for (let user of users) {
+				response.push({
+					id: user.accountId,
+					displayName: user.username,
+					externalAuths: {}
+				});
+			}
+		}
+	}
+
+	return c.json(response, 200);
+
+});
+
+app.get("/account/api/public/account/displayName/:displayName", async (c) => {
+
+	let user = await mongo.getUser("username", c.req.param("displayName"), ATLAS_KEY)
+
+	if (!user) return c.json(createError(
+		"errors.com.epicgames.account.account_not_found",
+		`Sorry, we couldn't find an account for ${c.req.param("displayName")}`,
+		[c.req.param('displayName')], 18007, undefined)
+	);
+
+	c.json({
+		id: user.accountId,
+		displayName: user.username,
+		externalAuths: {}
+	});
+
+});
+
+app.get("/account/api/public/account/:accountId", async (c, next) => {
+
+	let user = await mongo.getUser("accountId", c.req.param("accountId"), ATLAS_KEY)
+
+	c.json({
+		id: user.accountId,
+		displayName: user.username,
+		name: "Account",
+		email: `[redacted]@${user.email.split("@")[1]}`,
+		failedLoginAttempts: 0,
+		lastLogin: new Date().toISOString(),
+		numberOfDisplayNameChanges: 0,
+		ageGroup: "UNKNOWN",
+		headless: false,
+		country: "US",
+		lastName: "Server",
+		preferredLanguage: "en",
+		canUpdateDisplayName: false,
+		tfaEnabled: false,
+		emailVerified: true,
+		minorVerified: false,
+		minorExpected: false,
+		minorStatus: "UNKNOWN"
+	});
+
+});
+
+app.get("/account/api/public/account/*/externalAuths", async (c) => {
+	c.json([]);
+});
+
 //TODO Version
+
+app.get("/fortnite/api/version", async (c) => {
+	c.json({
+		"app": "fortnite",
+		"serverDate": new Date().toISOString(),
+		"overridePropertiesVersion": "unknown",
+		"cln": "17951730",
+		"build": "444",
+		"moduleName": "Fortnite-Core",
+		"buildDate": "2021-10-27T21:00:51.697Z",
+		"version": "18.30",
+		"branch": "Release-18.30",
+		"modules": {
+			"Epic-LightSwitch-AccessControlCore": {
+				"cln": "17237679",
+				"build": "b2130",
+				"buildDate": "2021-08-19T18:56:08.144Z",
+				"version": "1.0.0",
+				"branch": "trunk"
+			},
+			"epic-xmpp-api-v1-base": {
+				"cln": "5131a23c1470acbd9c94fae695ef7d899c1a41d6",
+				"build": "b3595",
+				"buildDate": "2019-07-30T09:11:06.587Z",
+				"version": "0.0.1",
+				"branch": "master"
+			},
+			"epic-common-core": {
+				"cln": "17909521",
+				"build": "3217",
+				"buildDate": "2021-10-25T18:41:12.486Z",
+				"version": "3.0",
+				"branch": "TRUNK"
+			}
+		}
+	});
+});
+
+app.get("/fortnite/api*/versioncheck*", async (c) => {
+    c.json({
+        "type": "NO_UPDATE"
+    });
+});
 
 //TODO Storefront
 
