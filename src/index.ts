@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 
 const app = new Hono()
 
-import uuid from 'uuid-random';
 //@ts-ignore
 import { JSONRequest } from '@worker-tools/json-fetch';
 import jwt from '@tsndr/cloudflare-worker-jwt';
@@ -10,8 +9,7 @@ import { cache } from 'hono/cache'
 import { prettyJSON } from 'hono/pretty-json'
 import mongo from './utils/mongo'
 import functions from './utils/functions'
-
-declare var DATA: any;
+import { uuid } from '@cfworker/uuid';
 
 const JWT_SECRET: string = 'nexus';
 const ATLAS_KEY: string = 's0iJyjBYCH004YlzTvxvgtJEHeYtx5VucAZLUgJHUlSSVj4WZC8NsfsjhJAjXPo0'
@@ -32,6 +30,7 @@ interface Env {
 //Functions
 
 function createAccess(user: any, clientId: string, grant_type: string, deviceId: string, expiresIn: any) {
+
 	let accessToken = jwt.sign({
 		"app": "fortnite",
 		"sub": user.accountId,
@@ -40,7 +39,7 @@ function createAccess(user: any, clientId: string, grant_type: string, deviceId:
 		"clid": clientId,
 		"dn": user.username,
 		"am": grant_type,
-		"p": atob(MakeID().toString()),
+		"p": btoa(uuid()),
 		"iai": user.accountId,
 		"sec": 1,
 		"clsvc": "fortnite",
@@ -50,8 +49,6 @@ function createAccess(user: any, clientId: string, grant_type: string, deviceId:
 		"creation_date": new Date(),
 		"hours_expire": expiresIn
 	}, JWT_SECRET);
-
-	accessTokens.push({ accountId: user.accountId, token: `eg1~${accessToken}` });
 
 	return accessToken;
 }
@@ -130,6 +127,27 @@ app.get(
 	})
 )
 
+app.get('/health', (c) => {
+	return c.json({
+		status: 'ok',
+	})
+})
+
+app.get('/vaultmp', async (c) => {
+
+	const shouldWork:boolean = c.env.TOKENS.get('shouldWork');
+	if (shouldWork) {
+		return c.json({
+			status: 'ok',
+		})
+	} else {
+		return c.json({
+			status: 'error',
+		})
+	}
+
+});
+
 app.get('/getuser/:user', async (c) => {
 
 	const user = c.req.param('user');
@@ -179,25 +197,28 @@ app.post('/account/api/oauth/token', async (c) => {
 
 	let clientId: any;
 
+	const body: any = await c.req.parseBody();
+	console.log("oauth: " + body.grant_type);
+	console.log(body)
+
+
 	const authorization = c.req.headers.get('authorization')
 
 	if (authorization != null) {
-		const base64Credentials: any = authorization.split(' ')[1].split(':');
-		const credentials = atob(base64Credentials);
+		clientId = functions.DecodeBase64(authorization.split(" ")[1]).split(":");
 
-		clientId = credentials;
+		clientId = clientId[0];
 
-		if (!clientId[1]) throw new Error("invalid client id");
+		console.log("clientId: " + clientId);
 
 	} else {
 		error = createError(
 			"errors.com.epicgames.common.oauth.invalid_client",
 			"It appears that your Authorization header may be invalid or not present, please verify that you are sending the correct headers.",
 			[], 1011, "invalid_client")
+			console.log("oauth createerror authorization header invalid");
 		return c.json(error, 400);
 	}
-
-	const body: any = await c.req.body;
 
 	let clientip: string = c.req.header('CF-Connecting-IP') || 'noip';
 
@@ -206,6 +227,8 @@ app.post('/account/api/oauth/token', async (c) => {
 	switch (body.grant_type as string) {
 
 		case 'client_credentials':
+
+			console.log("oauth: client_credentials");
 
 			let clientToken = clientTokens.findIndex(i => i.ip == clientip);
 
@@ -237,12 +260,16 @@ app.post('/account/api/oauth/token', async (c) => {
 
 		case 'password':
 
-			if (!body.username || !body.password)
+		console.log("oauth: password");
+
+			if (!body.username || !body.password) {
 				error = createError(
 					"errors.com.epicgames.common.oauth.invalid_request",
 					"Username/password is required.",
 					[], 1013, "invalid_request")
+					console.log("oauth createerror username/password is required: " + body.username + " " + body.password);
 			return c.json(error, 400);
+			}
 
 			const { username: email, password: password } = body;
 
@@ -257,12 +284,14 @@ app.post('/account/api/oauth/token', async (c) => {
 					"database": "Serverless",
 					"collection": "users",
 					"filter": {
-						"username": email.toLowerCase(),
+						"email": email.toLowerCase(),
 					}
 				}
 			})).then(res => res.json());
 
-			requser = response.document;
+			requser = await response.document;
+
+			console.log(requser);
 
 			error = createError(
 				"errors.com.epicgames.account.invalid_account_credentials",
@@ -270,33 +299,28 @@ app.post('/account/api/oauth/token', async (c) => {
 				[], 18031, "invalid_grant"
 			);
 
-			if (!requser) {
-				return c.json(error, 400);
-			}
-			else {
+			console.log("oauth: email: " + email);
+			console.log("oauth: password: " + password);
 
-				const encoder = new TextEncoder();
-				const data = encoder.encode(password);
-				//TODO make password alraedy hashed
-				const hashedPassword = await crypto.subtle.digest('SHA-256', data);
-				const hashedPasswordString = Array.prototype.map.call(new Uint8Array(hashedPassword), x => ('00' + x.toString(16)).slice(-2)).join('');
-
-				if (hashedPasswordString !== requser.password) {
+				if (requser.password !== body.password) {
+					console.log("oauth: error created: email or password incorrect");
 					return c.json(error, 400);
-
 				}
 
-			}
+				console.log("oauth: email and password correct");
 
 			break;
 
 		case 'refresh_token':
+
+		console.log("oauth: refresh_token");
 
 			if (!body.refresh_token) {
 				error = createError(
 					"errors.com.epicgames.common.oauth.invalid_request",
 					"Refresh token is required.",
 					[], 1013, "invalid_request")
+					console.log("oauth createerror refresh token is required");
 				return c.json(error, 400);
 			}
 
@@ -306,6 +330,8 @@ app.post('/account/api/oauth/token', async (c) => {
 
 			try {
 
+				console.log("oauth: refresh token step");
+
 				jwt.verify(refresh_token.replace('eg1~', ''), JWT_SECRET);
 
 				if (refreshToken == -1) {
@@ -313,6 +339,7 @@ app.post('/account/api/oauth/token', async (c) => {
 						"errors.com.epicgames.common.oauth.invalid_request",
 						"Refresh token is invalid.",
 						[], 1013, "invalid_request")
+						console.log("oauth: refresh token invalid");
 					return c.json(error, 400);
 				}
 
@@ -324,6 +351,7 @@ app.post('/account/api/oauth/token', async (c) => {
 					"errors.com.epicgames.account.auth_token.invalid_refresh_token",
 					`Sorry the refresh token '${refresh_token}' is invalid`,
 					[refresh_token], 18036, "invalid_grant")
+					console.log("oauth: refresh token invalid");
 				return c.json(error, 400);
 
 			}
@@ -352,14 +380,17 @@ app.post('/account/api/oauth/token', async (c) => {
 				"errors.com.epicgames.common.oauth.unsupported_grant_type",
 				`Unsupported grant type: ${body.grant_type}`,
 				[], 1016, "unsupported_grant_type")
+				console.log("oauth: unsupported grant type");
 			return c.json(error, 400);
 	}
 
 	if (requser.banned || false) {
+		console.log("oauth: account banned step");
 		error = createError(
 			"errors.com.epicgames.account.account_not_active",
 			"Sorry, your account is inactive and may not login.",
 			[], -1, undefined)
+			console.log("oauth: account not active");
 		return c.json(error, 400);
 	}
 
@@ -370,8 +401,14 @@ app.post('/account/api/oauth/token', async (c) => {
 	if (refreshIndex != -1) refreshTokens.splice(refreshIndex, 1);
 
 	const deviceId: string = uuid().replace(/-/g, "");
-	const accessToken: any = createAccess(requser, clientId, body.grant_type, deviceId, 8);
-	const refreshToken: any = createRefresh(requser, clientId, body.grant_type, deviceId, 8);
+
+	const accessToken: any = await createAccess(requser, clientId, body.grant_type, deviceId, 8);
+
+	const refreshToken: any = await createRefresh(requser, clientId, body.grant_type, deviceId, 8);
+
+	//FIXME token.split is not a function
+
+	console.log("Access token is " + await accessToken);
 
 	const decodedAccess = jwt.decode(accessToken);
 	const decodedRefresh = jwt.decode(refreshToken);
@@ -393,6 +430,8 @@ app.post('/account/api/oauth/token', async (c) => {
 		"in_app_id": requser.accountId,
 		"device_id": deviceId
 	}
+
+	console.log("oauth: return body created");
 
 	return c.json(returnBody, 200);
 
@@ -649,7 +688,7 @@ app.get('/fortnite/api/game/v2/leaderboards/cohort/*', async (c) => {
 
 });
 
-app.get('/datarouter/api/v1/public/data', async (c) => {
+app.post('/datarouter/api/v1/public/data/*', async (c) => {
 
 	return c.json({}, 200);
 

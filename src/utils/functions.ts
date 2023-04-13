@@ -71,6 +71,10 @@ class functions {
         return memory;
     }
 
+    DecodeBase64(data:string) {
+        return atob(data);
+    }
+
 }
 
 export default new functions();

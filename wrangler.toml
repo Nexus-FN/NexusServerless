@@ -1,5 +1,6 @@
 name = "nexusserverless"
 compatibility_date = "2023-01-01"
+compatibility_flags = [ "nodejs_compat" ]
 
 kv_namespaces = [
     { binding = "TOKENS", id = "88fe9ca56e5249c5867c0415bc240e04", preview_id = "1727b3cdbeff4bd594fbe3b714bb21ac" },
