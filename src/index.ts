@@ -114,7 +114,7 @@ function createAccess(user: any, clientId: string, grant_type: string, deviceId:
 		"clid": clientId,
 		"dn": user.username,
 		"am": grant_type,
-		"p": btoa(uuid()),
+		"p": btoa(MakeID().replace(/-/ig, "")),
 		"iai": user.accountid,
 		"sec": 1,
 		"clsvc": "fortnite",
@@ -164,7 +164,7 @@ function createError(errorCode: string, errorMessage: string, messageVars: strin
 
 function createClient(clientId: string | undefined, grant_type: string, ip: string, expiresIn: any) {
 	let clientToken = JSON.stringify(jwt.sign({
-		"p": btoa(uuid.toString()),
+		"p": btoa(MakeID().replace(/-/ig, "").toString()),
 		"clsvc": "fortnite",
 		"t": "s",
 		"mver": false,
@@ -220,7 +220,7 @@ app.get('/create/:user/:pass', async (c) => {
 	const user = c.req.param('user');
 	const pass = c.req.param('pass');
 
-	const genUUID:any = uuid();
+	const genUUID:any = MakeID().replace(/-/ig, "");
 
 	const userResult = await client.query(`
       INSERT INTO users (created, discordId, accountId, username, username_lower, email, password)

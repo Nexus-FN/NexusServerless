@@ -18,6 +18,20 @@ class profileManager {
         return true;
     }
 
+    async createProfile(accountId:string, c:any) {
+        
+            const profiles:{} = c.env.CACHE.get('profilestemplate');
+
+            const profile = {
+                accountId: accountId,
+                created: Date.now(),
+                updated: Date.now(),
+                profiles: profiles
+            };
+        
+            return profile;
+    }
+
 }
 
 export default new profileManager();
