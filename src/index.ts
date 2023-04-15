@@ -189,6 +189,39 @@ app.use('*', async (c, next) => {
 
 app.use('*', prettyJSON())
 
+app.use('*', async (c, next) => {
+
+	let clientip: string = c.req.header('CF-Connecting-IP') || 'noip';
+	const MAX_REQUESTS = 30;
+
+	let value = await c.env.RATELIMIT.get(clientip)
+
+	console.log(`[${clientip}] ${value}`)
+
+	if (value === null) {
+		value = 1;
+	}
+	if (value >= MAX_REQUESTS) {
+		c.res.headers.set('Access-Control-Allow-Origin', '*');
+		c.res.headers.set('Cache-Control', 'max-age=3');
+		return c.json({
+			status: 429,
+			statusText: 'Too Many Requests',
+		});
+	}
+
+	try {
+		await c.env.RATELIMIT.put(clientip, parseInt(value) + 1, { expirationTtl: 61 });
+	} catch (ex) {
+		// ignore - as the KV threshold may exceed
+		console.log(ex);
+	}
+
+	await next()
+
+})
+
+
 app.get(
 	'*',
 	cache({
@@ -220,7 +253,7 @@ app.get('/create/:user/:pass', async (c) => {
 	const user = c.req.param('user');
 	const pass = c.req.param('pass');
 
-	const genUUID:any = MakeID().replace(/-/ig, "");
+	const genUUID: any = MakeID().replace(/-/ig, "");
 
 	const userResult = await client.query(`
       INSERT INTO users (created, discordId, accountId, username, username_lower, email, password)
@@ -234,7 +267,7 @@ app.get('/create/:user/:pass', async (c) => {
       INSERT INTO profiles (created, accountId, profiles)
       VALUES ($1, $2, $3)
       RETURNING *
-    `, [new Date(), genUUID, { }]);
+    `, [new Date(), genUUID, {}]);
 
 	const profileId = profileResult.rows[0].id;
 
@@ -255,11 +288,11 @@ app.get('/create/:user/:pass', async (c) => {
 
 });
 
-app.get('/getuser/:accountId', async (c) => {
+app.get('/getuser/:username', async (c) => {
 
-	const accountId:any = c.req.param('accountId');
+	const accountId: any = c.req.param('username');
 
-	const user:any = await db.getUserAccountID(accountId);
+	const user: any = JSON.parse(await db.getUserUsername(accountId, c));
 
 	console.log(user.banned)
 
@@ -410,7 +443,7 @@ app.post('/account/api/oauth/token', async (c) => {
 
 			const { username: email, password: password } = body;
 
-			const dbuser = await db.getUserEmail(email);
+			const dbuser = await db.getUserEmail(email, c);
 
 			requser = dbuser;
 
@@ -481,8 +514,8 @@ app.post('/account/api/oauth/token', async (c) => {
 				return c.json(error, 400);
 
 			}
-			
-			requser = await db.getUserAccountID(object.accountId)
+
+			requser = await db.getUserAccountID(object.accountId, c)
 			console.log("oauth: get user account id step for refresh token = " + requser);
 
 			break;
@@ -715,7 +748,7 @@ app.get("/friends/api/public/friends/:accountId", async (c) => {
 
 	console.log("friends: get friends for " + c.req.param("accountId") + "");
 
-	const friends = await db.getFriends(c.req.param("accountId"));
+	const friends = await db.getFriends(c.req.param("accountId"), c);
 
 	friends.list.accepted.forEach((acceptedFriend: { accountId: any; created: any; }) => {
 		response.push({
@@ -1064,7 +1097,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/MarkItemSeen", async (c) => {
 		//@ts-ignore
 		[profileId], 12813, undefined)
 	);
-	const foundProfile = await db.getUserAccountID(body.user.accountId);
+	const foundProfile = await db.getUserAccountID(body.user.accountId, c);
 	console.log(foundProfile);
 	const profile = foundProfile[profileId];
 	console.log(profile);
@@ -1146,8 +1179,8 @@ app.post('/fortnite/api/game/v2/toxicity/account/:reporter/report/:reportedPlaye
 	const reporter: string = c.req.param('reporter');
 	const reportedPlayer: string = c.req.param('reportedPlayer');
 
-	let reporterData: any = await db.getUserAccountID(reporter);
-	let reportedPlayerData: any = await db.getUserAccountID(reportedPlayer);
+	let reporterData: any = await db.getUserAccountID(reporter, c);
+	let reportedPlayerData: any = await db.getUserAccountID(reportedPlayer, c);
 
 	let reporterDiscordID: string = await reporterData?.discordId;
 	let reporterUsername: string = await reporterData?.username;
@@ -1187,7 +1220,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/SetItemFavoriteStatusBatch", as
 		["SetItemFavoriteStatusBatch", profileId], 12801, undefined)
 	);
 
-	const profiles = await db.getProfile(requser.accountId);
+	const profiles = await db.getProfile(requser.accountId, c);
 	let profile = profiles.profiles[profileId];
 
 	if (profileId == "athena") {
@@ -1286,7 +1319,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/SetBattleRoyaleBanner", async (
 		["SetBattleRoyaleBanner", profileId], 12801, undefined)
 	);
 
-	const profiles = await db.getProfile(requser.accountId);
+	const profiles = await db.getProfile(requser.accountId, c);
 	let profile = profiles.profiles[profileId];
 
 	const memory = functions.GetVersionInfo(c);
@@ -1406,7 +1439,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/EquipBattleRoyaleCustomization"
 		["EquipBattleRoyaleCustomization", profileId], 12801, undefined)
 	);
 
-	const profiles = await db.getProfile(requser.accountId);
+	const profiles = await db.getProfile(requser.accountId, c);
 	let profile = profiles.profiles[profileId];
 
 	if (profileId == "athena") {
@@ -1594,7 +1627,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/:operation", async (c) => {
 		[profileId], 12813, undefined)
 	);
 
-	const profiles = await db.getProfile("accountId");
+	const profiles = await db.getProfile("accountId", c);
 	let profile = profiles.profiles[profileId];
 
 	if (profileId == "athena") {
@@ -1717,7 +1750,7 @@ app.get("/account/api/public/account", async (c) => {
 	let response: Array<Object> = [];
 
 	if (typeof c.req.query("accountId") == "string") {
-		let user = await db.getUserAccountID(c.req.query("accountId") || "")
+		let user = await db.getUserAccountID(c.req.query("accountId") || "", c)
 
 
 		if (user) {
@@ -1730,7 +1763,7 @@ app.get("/account/api/public/account", async (c) => {
 	}
 
 	if (Array.isArray(c.req.query("accountId"))) {
-		let users = await db.getUserAccountID(c.req.query("accountId") || "")
+		let users = await db.getUserAccountID(c.req.query("accountId") || "", c)
 
 		if (users) {
 			for (let user of users) {
@@ -1749,7 +1782,7 @@ app.get("/account/api/public/account", async (c) => {
 
 app.get("/account/api/public/account/displayName/:displayName", async (c) => {
 
-	let user = await db.getUserUsername(c.req.param("displayName"))
+	let user = await db.getUserUsername(c.req.param("displayName"), c)
 	console.log(user)
 
 	if (!user) return c.json(createError(
@@ -1768,7 +1801,7 @@ app.get("/account/api/public/account/displayName/:displayName", async (c) => {
 
 app.get("/account/api/public/account/:accountId", async (c) => {
 
-	let user = await db.getUserAccountID(c.req.param("accountId"))
+	let user = await db.getUserAccountID(c.req.param("accountId"), c)
 
 	return c.json({
 		id: user.accountid,
@@ -1874,9 +1907,7 @@ app.get("/fortnite/api/storefront/v2/keychain", async (c) => {
 	const cachedKeychain: string = await c.env.CACHE.get("keychain");
 	if (cachedKeychain) {
 		const parsedKeychain = JSON.parse(cachedKeychain);
-		//set content type to json
-		c.req.header("content-type: application/json");
-		return c.text(
+		return c.json(
 			parsedKeychain,
 		)
 	} else {

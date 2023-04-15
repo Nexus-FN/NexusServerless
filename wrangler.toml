@@ -4,7 +4,10 @@ compatibility_flags = [ "nodejs_compat" ]
 
 kv_namespaces = [
     { binding = "TOKENS", id = "88fe9ca56e5249c5867c0415bc240e04", preview_id = "1727b3cdbeff4bd594fbe3b714bb21ac" },
-    { binding = "CACHE", id = "8108546931274e6584686fee4e7e041d", preview_id = "d12db8ece300466aa7070a38ad0af33b" }
+    { binding = "CACHE", id = "8108546931274e6584686fee4e7e041d", preview_id = "d12db8ece300466aa7070a38ad0af33b" },
+    { binding = "PROFILECACHE", id = "4b5d938b5e8e4602be3805c83251728e", preview_id = "8b32d9441af44e898759ec3181ce4f5b" },
+    { binding = "USERCACHE", id = "600519dbfa4e45ec9aef914d8aa5cd83",  preview_id = "ceed95c50013467d8cd0023f5fe338f0"},
+    { binding = "RATELIMIT", id = "21e5263a0f25437db0c3c24e668192f8", preview_id = "f67b32d4f99f46bc8e2e35ebb7531dbf" }
 ]
 
 [[r2_buckets]]
