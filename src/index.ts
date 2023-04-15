@@ -181,31 +181,7 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 	return clientToken;
 }
 
-//Rate limit
-app.use('*', async (c, next) => {
-	let clientip: string = c.req.header('CF-Connecting-IP') || 'noip';
-	const MAX_REQUESTS = 120;
-	let value = await c.env.RATELIMIT.get(clientip)
-	console.log(`[${clientip}] ${value}`)
-	if (value === null) {
-		value = 1;
-	}
-	if (value >= MAX_REQUESTS) {
-		c.res.headers.set('Access-Control-Allow-Origin', '*');
-		c.res.headers.set('Cache-Control', 'max-age=3');
-		return c.json({
-			status: 429,
-			statusText: 'Too Many Requests',
-		});
-	}
-	try {
-		await c.env.RATELIMIT.put(clientip, parseInt(value) + 1, { expirationTtl: 121 });
-	} catch (ex) {
-		// ignore - as the KV threshold may exceed
-		console.log(ex);
-	}
-	await next()
-})
+
 
 //Routes
 
