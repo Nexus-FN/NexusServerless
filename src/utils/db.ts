@@ -107,7 +107,8 @@ class db {
         } else {
             console.log('Cache miss!');
             const res = await client.query('SELECT * FROM profiles WHERE accountid = $1', [accountId]);
-            await c.env.PROFILECACHE.put(accountId, JSON.stringify(res.rows[0]), { expirationTtl: 10 });
+            //FIXME - Remove ttl after testing
+            await c.env.PROFILECACHE.put(accountId, JSON.stringify(res.rows[0]), { expirationTtl: 61 });
             cachedProfile = JSON.parse(await c.env.PROFILECACHE.get(accountId));
             return cachedProfile;
         }

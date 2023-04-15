@@ -1,13 +1,14 @@
-import mongo from "./mongo";
+import { Context } from "hono";
+import db from "./db";
 
 class profileManager {
 
-    async validateProfile(accountId:string, profileId:string) {
+    async validateProfile(accountId:string, profileId:string, c:Context) {
         try {
 
             console.log(accountId + " is accountId");
 
-            let foundProfile = JSON.parse(await c.env.CACHE.get(`profile_${accountId}`));
+            let foundProfile = await db.getProfile(accountId, c);
             console.log(foundProfile + " is profile");
     
             if (!foundProfile || !profileId) throw new Error("Invalid profile/profileId");

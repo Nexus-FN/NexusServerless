@@ -181,14 +181,7 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 	return clientToken;
 }
 
-//Routes
-app.use('*', async (c, next) => {
-	console.log(`[${c.req.method}] ${c.req.url}`)
-	await next()
-})
-
-app.use('*', prettyJSON())
-
+//Rate limit
 app.use('*', async (c, next) => {
 	let clientip: string = c.req.header('CF-Connecting-IP') || 'noip';
 	const MAX_REQUESTS = 120;
@@ -213,6 +206,16 @@ app.use('*', async (c, next) => {
 	}
 	await next()
 })
+
+//Routes
+
+
+app.use('*', async (c, next) => {
+	console.log(`[${c.req.method}] ${c.req.url}`)
+	await next()
+})
+
+app.use('*', prettyJSON())
 
 
 app.get(
@@ -306,47 +309,6 @@ app.get('/vaultmp', async (c) => {
 	} else {
 		return c.json({
 			status: 'error',
-		})
-	}
-
-});
-
-app.get('/getuser/:user', async (c) => {
-
-	const user = c.req.param('user');
-
-	//@ts-ignore
-	const cachedUser = await c.env.TOKENS.get(user);
-	if (cachedUser) {
-		console.log('Found user in cache')
-		const parsedUser = JSON.parse(cachedUser);
-		return c.json({
-			user: parsedUser,
-		})
-	} else {
-
-
-		const response: any = await fetch(new JSONRequest('https://data.mongodb-api.com/app/data-tsmsh/endpoint/data/beta/action/findOne', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'apiKey': ATLAS_KEY
-			},
-			body: {
-				"dataSource": "Nexus",
-				"database": "Serverless",
-				"collection": "users",
-				"filter": {
-					"username": user
-				}
-			}
-		})).then(res => res.json());
-
-		//@ts-ignore
-		await c.env.TOKENS.put(user, JSON.stringify(response.document));
-		console.log('User not found in cache, caching user')
-		return c.json({
-			user: response.document,
 		})
 	}
 
@@ -614,12 +576,6 @@ app.get('/account/api/oauth/exchange', async (c) => {
 });
 
 app.delete('/account/api/oauth/sessions/kill', async (c) => {
-
-	return c.json(204);
-
-});
-
-app.get('/test/test', async (c) => {
 
 	return c.json(204);
 
@@ -1084,7 +1040,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/MarkItemSeen", async (c) => {
 	const profileId: any = c.req.param("profileId");
 
 	//@ts-ignore
-	if (!await profileManager.validateProfile(body.user.accountId, profileId)) return c.json(createError(
+	if (!await profileManager.validateProfile(body.user.accountId, profileId, c)) return c.json(createError(
 		"errors.com.epicgames.modules.profiles.operation_forbidden",
 		`Unable to find template configuration for profile ${profileId}`,
 		//@ts-ignore
@@ -1201,7 +1157,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/SetItemFavoriteStatusBatch", as
 
 	const profileId = c.req.query("profileId") ?? "";
 
-	if (!await profileManager.validateProfile(requser.accountId, profileId)) return c.json(createError(
+	if (!await profileManager.validateProfile(requser.accountId, profileId, c)) return c.json(createError(
 		"errors.com.epicgames.modules.profiles.operation_forbidden",
 		`Unable to find template configuration for profile ${profileId}`,
 		[profileId], 12813, undefined)
@@ -1300,7 +1256,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/SetBattleRoyaleBanner", async (
 	let requser = body.user;
 	let profileId = c.req.query("profileId") ?? "";
 
-	if (!await profileManager.validateProfile(requser.accountId, profileId)) return c.json(createError(
+	if (!await profileManager.validateProfile(requser.accountId, profileId, c)) return c.json(createError(
 		"errors.com.epicgames.modules.profiles.operation_forbidden",
 		`Unable to find template configuration for profile ${profileId}`,
 		[profileId], 12813, undefined)
@@ -1420,7 +1376,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/EquipBattleRoyaleCustomization"
 	let requser = body.user;
 	let profileId = c.req.query("profileId") || "common_core";
 
-	if (!await profileManager.validateProfile(requser.accountId, profileId)) return c.json(createError(
+	if (!await profileManager.validateProfile(requser.accountId, profileId, c)) return c.json(createError(
 		"errors.com.epicgames.modules.profiles.operation_forbidden",
 		`Unable to find template configuration for profile ${profileId}`,
 		[profileId], 12813, undefined)
@@ -1614,7 +1570,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/:operation", async (c) => {
 	let profileId = c.req.query("profileId") || "common_core";
 	const accountId = "63167735267d4edf860e29eb79174690"
 
-	if (!await profileManager.validateProfile(accountId, profileId)) return c.json(createError(
+	if (!await profileManager.validateProfile(accountId, profileId, c)) return c.json(createError(
 		"errors.com.epicgames.modules.profiles.operation_forbidden",
 		`Unable to find template configuration for profile ${profileId}`,
 		[profileId], 12813, undefined)
@@ -1794,33 +1750,38 @@ app.get("/account/api/public/account/displayName/:displayName", async (c) => {
 
 app.get("/account/api/public/account/:accountId", async (c) => {
 
-	let user = await db.getUserAccountID(c.req.param("accountId"), c)
+	console.log("Getting account info for: " + c.req.param("accountId"))
 
-	if(!user) { 
-	console.log("User not found: " + user.username)
+	try {
+		let user = await db.getUserAccountID(c.req.param("accountId"), c)
+
+		return c.json({
+			id: "caa50335-4fb7-43dd-ba5b-1a72730f5141",
+			displayName: user.username,
+			name: "Account",
+			email: `[redacted]@${user.email.split("@")[1]}`,
+			failedLoginAttempts: 0,
+			lastLogin: new Date().toISOString(),
+			numberOfDisplayNameChanges: 0,
+			ageGroup: "UNKNOWN",
+			headless: false,
+			country: "US",
+			lastName: "Server",
+			preferredLanguage: "en",
+			canUpdateDisplayName: false,
+			tfaEnabled: false,
+			emailVerified: true,
+			minorVerified: false,
+			minorExpected: false,
+			minorStatus: "UNKNOWN"
+		});
+	} catch {
+		return c.json(createError(
+			"errors.com.epicgames.account.account_not_found",
+			`Sorry, we couldn't find an account for ${c.req.param("accountId")}`,
+			[c.req.param('accountId')], 18007, undefined)
+		);
 	}
-
-	return c.json({
-		id: "caa50335-4fb7-43dd-ba5b-1a72730f5141",
-		displayName: user.username,
-		name: "Account",
-		email: `[redacted]@${user.email.split("@")[1]}`,
-		failedLoginAttempts: 0,
-		lastLogin: new Date().toISOString(),
-		numberOfDisplayNameChanges: 0,
-		ageGroup: "UNKNOWN",
-		headless: false,
-		country: "US",
-		lastName: "Server",
-		preferredLanguage: "en",
-		canUpdateDisplayName: false,
-		tfaEnabled: false,
-		emailVerified: true,
-		minorVerified: false,
-		minorExpected: false,
-		minorStatus: "UNKNOWN"
-	});
-
 });
 
 app.get("/account/api/public/account/*/externalAuths", async (c) => {
@@ -1883,11 +1844,8 @@ app.get("/fortnite/api/storefront/v2/catalog", async (c) => {
 	//@ts-ignore
 	const cachedShop = await c.env.CACHE.get("shop");
 	if (cachedShop) {
-		console.log('Found shop in cache')
 		const parsedShop = JSON.parse(cachedShop);
-		return c.json({
-			parsedShop,
-		})
+		return c.json(parsedShop, 200)
 	} else {
 		console.log('Shop not found in cache')
 
