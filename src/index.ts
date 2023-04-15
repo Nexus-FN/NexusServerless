@@ -16,9 +16,9 @@ import { resetContent } from '@worker-tools/shed';
 const JWT_SECRET: string = 'nexus';
 const ATLAS_KEY: string = 's0iJyjBYCH004YlzTvxvgtJEHeYtx5VucAZLUgJHUlSSVj4WZC8NsfsjhJAjXPo0'
 
-const clientTokens: any[] = [];
-const refreshTokens: any[] = [];
-const accessTokens: any[] = [];
+let clientTokens: any[] = [];
+let refreshTokens: any[] = [];
+let accessTokens: any[] = [];
 
 const Clients: any[] = [];
 
@@ -128,7 +128,7 @@ function createAccess(user: any, clientId: string, grant_type: string, deviceId:
 	return accessToken;
 }
 
-function createRefresh(user: any, clientId: string, grant_type: string, deviceId: string, expiresIn: any) {
+async function createRefresh(user: any, clientId: string, grant_type: string, deviceId: string, expiresIn: any, c:any) {
 	let refreshToken = jwt.sign({
 		"sub": user.accountId,
 		"dvid": deviceId,
@@ -140,7 +140,11 @@ function createRefresh(user: any, clientId: string, grant_type: string, deviceId
 		"hours_expire": expiresIn
 	}, JWT_SECRET);
 
+	refreshTokens = await c.env.TOKENS.get("refreshTokens");
+
 	refreshTokens.push({ accountId: user.accountId, token: `eg1~${refreshToken}` });
+
+	await c.env.TOKENS.put("refreshTokens", refreshTokens);
 
 	return refreshToken;
 }
@@ -162,7 +166,8 @@ function createError(errorCode: string, errorMessage: string, messageVars: strin
 	};
 }
 
-function createClient(clientId: string | undefined, grant_type: string, ip: string, expiresIn: any) {
+async function createClient(clientId: string | undefined, grant_type: string, ip: string, expiresIn: any, c:any) {
+
 	let clientToken = JSON.stringify(jwt.sign({
 		"p": btoa(MakeID().replace(/-/ig, "").toString()),
 		"clsvc": "fortnite",
@@ -176,7 +181,11 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 		"hours_expire": expiresIn
 	}, JWT_SECRET));
 
+	clientTokens = await c.env.TOKENS.get("clientTokens");
+
 	clientTokens.push({ ip: ip, token: `eg1~${clientToken}` });
+
+	await c.env.TOKENS.put("clientTokens", clientTokens);
 
 	return clientToken;
 }
@@ -185,14 +194,16 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 
 //Routes
 
-
-app.use('*', async (c, next) => {
-	console.log(`[${c.req.method}] ${c.req.url}`)
-	await next()
-})
-
 app.use('*', prettyJSON())
 
+app.use('*', async (c, next) => {
+
+	const start = Date.now()
+	await next()
+	const ms = Date.now() - start
+	c.res.headers.set('X-Response-Time', `${ms}ms`)
+
+})
 
 app.get(
 	'*',
@@ -204,7 +215,10 @@ app.get(
 
 app.onError((err, c) => {
 	console.log(`\x1b[31m${err}\x1b[0m`)
-	return c.text('An error has occured, Please contact @Zetax#7637 on Discord', 500)
+	return c.json({
+		"message": "An error has occured, Please contact @Zetax#7637 on Discord",
+		"error": err
+	}, 500)
 })
 
 app.notFound((c) => {
@@ -217,67 +231,26 @@ app.get('/health', (c) => {
 	})
 })
 
-app.get('/create/:user/:pass', async (c) => {
-
-	const pool = new Pool({ connectionString: DATABASE_URL });
-	const client = await pool.connect();
-
-	const user = c.req.param('user');
-	const pass = c.req.param('pass');
-
-	const genUUID: any = MakeID().replace(/-/ig, "");
-
-	const userResult = await client.query(`
-      INSERT INTO users (created, discordId, accountId, username, username_lower, email, password)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, created, discordId, accountId, username, username_lower, email, reports, donator, affiliate, stats
-    `, [new Date(), "327892412544581633", genUUID, 'Zetax', 'zetax', 'hazy-flower-03@icloud.com', pass]);
-
-	const userId = userResult.rows[0].id;
-
-	const profileResult = await client.query(`
-      INSERT INTO profiles (created, accountId, profiles)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [new Date(), genUUID, {}]);
-
-	const profileId = profileResult.rows[0].id;
-
-	const friendsResult = await client.query(`
-      INSERT INTO friends (created, accountId, list)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [new Date(), genUUID, { accepted: [], incoming: [], outgoing: [], blocked: [] }]);
-
-	const friendsId = friendsResult.rows[0].id;
-
-	return c.json({
-		status: 'ok',
-		userId: userId,
-		profileId: profileId,
-		friendsId: friendsId,
-	})
-
-});
-
 app.get('/getuser/:username', async (c) => {
 
 	const accountId: any = c.req.param('username');
 
-	const user: any = await db.getUserEmail(accountId, c);
+	let user: any = await db.getUserEmail(accountId, c);
 
-	console.log(user.password)
+	user.password = 'REDACTED'
+	user.discordid = 'REDACTED'
+	user.email = `[redacted]@${user.email.split("@")[1]}`;
 
-	return c.json({
-		user: user,
-	})
+	return c.json(
+		user,
+	)
 
 });
 
 app.get('/vaultmp', async (c) => {
 
 	//@ts-expect-error
-	const shouldWork: boolean = c.env.TOKENS.get('shouldWork');
+	const shouldWork: boolean = await c.env.TOKENS.get('shouldWork');
 	if (shouldWork) {
 		return c.json({
 			status: 'ok',
@@ -331,14 +304,12 @@ app.post('/account/api/oauth/token', async (c) => {
 
 			console.log("oauth: client_credentials");
 
-			let clientToken = clientTokens.findIndex(i => i.ip == clientip);
+			let clientToken = await c.env.TOKENS.get(clientip);
 
 			if (clientToken != -1) clientTokens.splice(clientToken, 1);
+			await c.env.TOKENS.put(clientip, clientTokens);
 
-			const token = createClient(clientId, body.grant_type, clientip, 4);
-
-			//@ts-ignore
-			c.env.TOKENS.put(clientip, token)
+			const token = createClient(clientId, body.grant_type, clientip, 4, c);
 
 			console.log("token: " + token);
 
@@ -470,17 +441,25 @@ app.post('/account/api/oauth/token', async (c) => {
 		return c.json(error, 400);
 	}
 
+	accessTokens = await c.env.TOKENS.get('accessTokens');
 	let accessIndex = accessTokens.findIndex(i => i.accountId == requser.accountId);
-	if (accessIndex != -1) accessTokens.splice(accessIndex, 1);
+	if (accessIndex != -1) {
+		accessTokens.splice(accessIndex, 1);
+		await c.env.TOKENS.put('accessTokens', accessTokens);
+	}
 
+	refreshTokens = await c.env.TOKENS.get('refreshTokens');
 	let refreshIndex = refreshTokens.findIndex(i => i.accountId == requser.accountId);
-	if (refreshIndex != -1) refreshTokens.splice(refreshIndex, 1);
+	if (refreshIndex != -1) {
+		refreshTokens.splice(refreshIndex, 1);
+		await c.env.TOKENS.put('refreshTokens', refreshTokens);
+	}
 
 	const deviceId: string = uuid().replace(/-/g, "");
 
 	const accessToken: any = await createAccess(requser, clientId, body.grant_type, deviceId, 8);
 
-	const refreshToken: any = await createRefresh(requser, clientId, body.grant_type, deviceId, 8);
+	const refreshToken: any = await createRefresh(requser, clientId, body.grant_type, deviceId, 8, c);
 
 	//FIXME token.split is not a function
 
@@ -559,7 +538,7 @@ app.delete('/account/api/oauth/sessions/kill', async (c) => {
 
 app.delete('/account/api/oauth/sessions/kill/:token', async (c) => {
 
-	return c.json({});
+	return c.json(204);
 
 });
 
@@ -1024,7 +1003,7 @@ app.post("/fortnite/api/game/v2/profile/*/client/MarkItemSeen", async (c) => {
 	);
 	const foundProfile = await db.getUserAccountID(body.user.accountId, c);
 	console.log(foundProfile);
-	const profile = foundProfile[profileId];
+	const profile = foundProfile.profileId;
 	console.log(profile);
 
 	if (profileId == "athena") {
@@ -1732,7 +1711,7 @@ app.get("/account/api/public/account/:accountId", async (c) => {
 		let user = await db.getUserAccountID(c.req.param("accountId"), c)
 
 		return c.json({
-			id: "caa50335-4fb7-43dd-ba5b-1a72730f5141",
+			id: user.accountid,
 			displayName: user.username,
 			name: "Account",
 			email: `[redacted]@${user.email.split("@")[1]}`,
@@ -1869,6 +1848,14 @@ app.get("/content/api/pages/fortnite-game", async (c) => { });
 app.get("/party/api/v1/Fortnite/user/:accountId", async (c) => {
 
 	return c.json(204);
+
+});
+
+app.get('/friends/api/public/blocklist/:accountId', async (c) => {
+
+	return c.json({
+		"blockedUsers": []
+	});
 
 });
 

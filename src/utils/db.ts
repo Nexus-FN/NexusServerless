@@ -15,14 +15,14 @@ class db {
             let cachedUser = await c.env.USERCACHE.get(email);
 
             if (cachedUser) {
-                console.log('Cache hit!');
+                c.res.headers.set('Cache-hit', 'true');
                 return JSON.parse(cachedUser);
             } else {
-                console.log('Cache miss!');
+                c.res.headers.set('Cache-hit', 'false');
                 const res = await client.query('SELECT * FROM users WHERE email = $1', [email]);
                 await c.env.USERCACHE.put(email, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
                 cachedUser = JSON.parse(await c.env.USERCACHE.get(email));
-                return cachedUser;
+                return res;
             }
         } finally {
             client.release();
@@ -40,10 +40,10 @@ class db {
             let cachedUser = await c.env.USERCACHE.get(accountId);
 
             if (cachedUser) {
-                console.log('Cache hit!');
+                c.res.headers.set('Cache-hit', 'true');
                 return JSON.parse(cachedUser);
             } else {
-                console.log('Cache miss!');
+                c.res.headers.set('Cache-hit', 'false');
                 const res = await client.query('SELECT * FROM users WHERE accountid = $1', [accountId]);
                 await c.env.USERCACHE.put(accountId, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
                 cachedUser = await JSON.parse(c.env.USERCACHE.get(accountId));
@@ -65,10 +65,10 @@ class db {
             let cachedUser = await c.env.USERCACHE.get(username);
 
             if (cachedUser) {
-                console.log('Cache hit!');
+                c.res.headers.set('Cache-hit', 'true');
                 return JSON.parse(cachedUser);
             } else {
-                console.log('Cache miss!');
+                c.res.headers.set('Cache-hit', 'false');
                 const res = await client.query('SELECT * FROM users WHERE username = $1', [username]);
                 await c.env.USERCACHE.put(username, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
                 cachedUser = await JSON.parse(c.env.USERCACHE.get(username));
@@ -96,21 +96,14 @@ class db {
 
     getProfile = async (accountId: string, c: any) => {
 
-        let cachedProfile = await c.env.PROFILECACHE.get(accountId);
-
         const pool = new Pool({ connectionString: DATABASE_URL });
         const client = await pool.connect();
 
-        if (cachedProfile) {
-            console.log('Cache hit!');
-            return JSON.parse(cachedProfile);
-        } else {
-            console.log('Cache miss!');
+        try {
             const res = await client.query('SELECT * FROM profiles WHERE accountid = $1', [accountId]);
-            //FIXME - Remove ttl after testing
-            await c.env.PROFILECACHE.put(accountId, JSON.stringify(res.rows[0]), { expirationTtl: 61 });
-            cachedProfile = JSON.parse(await c.env.PROFILECACHE.get(accountId));
-            return cachedProfile;
+            return res.rows[0];
+        } finally {
+            client.release();
         }
 
     };
