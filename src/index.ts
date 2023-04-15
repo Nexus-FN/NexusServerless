@@ -190,14 +190,10 @@ app.use('*', async (c, next) => {
 app.use('*', prettyJSON())
 
 app.use('*', async (c, next) => {
-
 	let clientip: string = c.req.header('CF-Connecting-IP') || 'noip';
-	const MAX_REQUESTS = 30;
-
+	const MAX_REQUESTS = 120;
 	let value = await c.env.RATELIMIT.get(clientip)
-
 	console.log(`[${clientip}] ${value}`)
-
 	if (value === null) {
 		value = 1;
 	}
@@ -209,16 +205,13 @@ app.use('*', async (c, next) => {
 			statusText: 'Too Many Requests',
 		});
 	}
-
 	try {
-		await c.env.RATELIMIT.put(clientip, parseInt(value) + 1, { expirationTtl: 61 });
+		await c.env.RATELIMIT.put(clientip, parseInt(value) + 1, { expirationTtl: 121 });
 	} catch (ex) {
 		// ignore - as the KV threshold may exceed
 		console.log(ex);
 	}
-
 	await next()
-
 })
 
 
@@ -292,9 +285,9 @@ app.get('/getuser/:username', async (c) => {
 
 	const accountId: any = c.req.param('username');
 
-	const user: any = JSON.parse(await db.getUserUsername(accountId, c));
+	const user: any = await db.getUserEmail(accountId, c);
 
-	console.log(user.banned)
+	console.log(user.password)
 
 	return c.json({
 		user: user,
@@ -462,7 +455,7 @@ app.post('/account/api/oauth/token', async (c) => {
 			const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('') // convert bytes to hex string
 
 			if (dbuser.password !== hashHex) {
-				console.log("oauth: error created: email or password incorrect. Hash is: " + hashHex);
+				console.log("oauth: error created: email or password incorrect. Hash is: " + hashHex + " and db hash is: " + dbuser.password);
 				return c.json(error, 400);
 			}
 
@@ -587,7 +580,7 @@ app.post('/account/api/oauth/token', async (c) => {
 app.get("/account/api/oauth/verify", async (c) => {
 
 	const authorization: any = c.req.header("authorization");
-	const body: any = await c.req.parseBody();
+	const body: any = await c.req.body;
 
 	if (authorization != undefined) {
 
@@ -1803,8 +1796,12 @@ app.get("/account/api/public/account/:accountId", async (c) => {
 
 	let user = await db.getUserAccountID(c.req.param("accountId"), c)
 
+	if(!user) { 
+	console.log("User not found: " + user.username)
+	}
+
 	return c.json({
-		id: user.accountid,
+		id: "caa50335-4fb7-43dd-ba5b-1a72730f5141",
 		displayName: user.username,
 		name: "Account",
 		email: `[redacted]@${user.email.split("@")[1]}`,
@@ -1932,5 +1929,13 @@ app.patch('/epic/presence/v1/:gameNsIg/:accountId/presence/:presenceUuid', async
 //TODO Modt
 
 app.get("/content/api/pages/fortnite-game", async (c) => { });
+
+//Party routes
+
+app.get("/party/api/v1/Fortnite/user/:accountId", async (c) => {
+
+	return c.json(204);
+
+});
 
 export default app
