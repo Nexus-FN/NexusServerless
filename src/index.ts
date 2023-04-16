@@ -184,14 +184,14 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 
 
 //Routes
-
+app.use('*', prettyJSON())
 
 app.use('*', async (c, next) => {
-	console.log(`[${c.req.method}] ${c.req.url}`)
+	const start = Date.now()
 	await next()
+	const ms = Date.now() - start
+	c.res.headers.set('X-Response-Time', `${ms}ms`)
 })
-
-app.use('*', prettyJSON())
 
 
 app.get(
@@ -204,7 +204,10 @@ app.get(
 
 app.onError((err, c) => {
 	console.log(`\x1b[31m${err}\x1b[0m`)
-	return c.text('An error has occured, Please contact @Zetax#7637 on Discord', 500)
+	return c.json({
+		"message": "An error has occured, Please contact @Zetax#7637 on Discord",
+		"error": err
+	}, 500)
 })
 
 app.notFound((c) => {
@@ -264,20 +267,22 @@ app.get('/getuser/:username', async (c) => {
 
 	const accountId: any = c.req.param('username');
 
-	const user: any = await db.getUserEmail(accountId, c);
+	let user: any = await db.getUserEmail(accountId, c);
 
-	console.log(user.password)
+	user.password = 'REDACTED'
+	user.discordid = 'REDACTED'
+	user.email = `[redacted]@${user.email.split("@")[1]}`;
 
-	return c.json({
-		user: user,
-	})
+	return c.json(
+		user
+	)
 
 });
 
 app.get('/vaultmp', async (c) => {
 
 	//@ts-expect-error
-	const shouldWork: boolean = c.env.TOKENS.get('shouldWork');
+	const shouldWork: boolean = await c.env.TOKENS.get('shouldWork');
 	if (shouldWork) {
 		return c.json({
 			status: 'ok',
@@ -1732,7 +1737,7 @@ app.get("/account/api/public/account/:accountId", async (c) => {
 		let user = await db.getUserAccountID(c.req.param("accountId"), c)
 
 		return c.json({
-			id: "caa50335-4fb7-43dd-ba5b-1a72730f5141",
+			id: user.accountid,
 			displayName: user.username,
 			name: "Account",
 			email: `[redacted]@${user.email.split("@")[1]}`,
