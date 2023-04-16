@@ -14,7 +14,6 @@ import profileManager from './utils/profileManager';
 import { resetContent } from '@worker-tools/shed';
 
 const JWT_SECRET: string = 'nexus';
-const ATLAS_KEY: string = 's0iJyjBYCH004YlzTvxvgtJEHeYtx5VucAZLUgJHUlSSVj4WZC8NsfsjhJAjXPo0'
 
 const clientTokens: any[] = [];
 const refreshTokens: any[] = [];
@@ -23,9 +22,6 @@ const accessTokens: any[] = [];
 const Clients: any[] = [];
 
 const exchangeTokens = [];
-
-import { Pool } from '@neondatabase/serverless';
-const DATABASE_URL: string = 'postgres://Finninn:0cwyFrTxnY7K@ep-restless-night-902408.eu-central-1.aws.neon.tech/Nexus';
 
 //Functions
 
