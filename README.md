@@ -6,7 +6,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/SkynetFN/NexusHono)](https://github.com/SkynetFN/NexusHono/issues)
 [![GitHub stars](https://img.shields.io/github/stars/SkynetFN/NexusHono)](https://github.com/SkynetFN/NexusHono/stargazers)
 
-Nexus Serverless is a serverless backend based on the popular Fortnite backend "LawinServerV2", modified to work with Cloudflare workers. It's currently in *ALPHA* and not suitable for production usage.
+Nexus Serverless is a serverless backend based on the popular Fortnite backend "LawinServerV2", modified to work with Cloudflare workers. It's currently in [![Version - ALPHA](https://img.shields.io/badge/Version-ALPHA-ed3939)](https://) and not suitable for production usage.
 
 ## License
 
