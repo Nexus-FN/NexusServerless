@@ -1,6 +1,6 @@
 # Nexus Serverless
 
-<img width="200" src="https://nexusassets.zetax.workers.dev/8bb88dcdecf925efc8fdc148bd2312369847f1ae5266826744edbfb48e28f0d8.png"/>
+<img src="https://camo.githubusercontent.com/3cfa16e48affed3aa466ef01e32b1a5089816ca4dd4e6de5d30cda7238ef9ba8/68747470733a2f2f692e696d6775722e636f6d2f3938614f68627a2e706e67"/>
 
 [![License: SSPL v1](https://img.shields.io/badge/License-SSPL%20v1-blue.svg)](https://www.mongodb.com/licensing/server-side-public-license)
 [![GitHub issues](https://img.shields.io/github/issues/SkynetFN/NexusHono)](https://github.com/SkynetFN/NexusHono/issues)
