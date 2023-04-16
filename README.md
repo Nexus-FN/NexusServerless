@@ -2,7 +2,7 @@
 
 <img width="200" src="https://nexusassets.zetax.workers.dev/8bb88dcdecf925efc8fdc148bd2312369847f1ae5266826744edbfb48e28f0d8.png"/>
 
-[![License: SSPL v1](https://img.shields.io/badge/License-SSPL%20v1-blue.svg)](https://opensource.org/licenses/SSPL-1.0)
+[![License: SSPL v1](https://img.shields.io/badge/License-SSPL%20v1-blue.svg)](https://www.mongodb.com/licensing/server-side-public-license)
 [![GitHub issues](https://img.shields.io/github/issues/SkynetFN/NexusHono)](https://github.com/SkynetFN/NexusHono/issues)
 [![GitHub stars](https://img.shields.io/github/stars/SkynetFN/NexusHono)](https://github.com/SkynetFN/NexusHono/stargazers)
 
