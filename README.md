@@ -22,4 +22,6 @@ Please note that we have a code of conduct, and that all activity in the Nexus S
 
 ## Getting Started
 
-To get started with Nexus Serverless, please follow the instructions in the [README](https://github.com/nexus-serverless/serverless/blob/main/README.md) file in this project.
+To get started with Nexus Serverless, please follow the instructions in the [README](https://github.com/NexusFN-io/NexusServerless/blob/main/SETUP.md) file in this project.
+
+
