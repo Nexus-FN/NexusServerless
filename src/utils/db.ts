@@ -1,131 +1,125 @@
-import { Pool } from '@neondatabase/serverless';
-import { Context } from 'hono';
+import { Pool } from "@neondatabase/serverless";
+import { Context } from "hono";
 
-const DATABASE_URL: string = "postgres://Finninn:0cwyFrTxnY7K@ep-restless-night-902408.eu-central-1.aws.neon.tech/Nexus";
+const DATABASE_URL: string =
+    "postgres://Finninn:0cwyFrTxnY7K@ep-restless-night-902408.eu-central-1.aws.neon.tech/Nexus";
 
 class db {
 
     getUserEmail = async (email: string, c: any) => {
-
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
-
         try {
 
-            let cachedUser = await c.env.USERCACHE.get(email);
+            let user;
 
-            if (cachedUser) {
-                console.log('Cache hit!');
-                return JSON.parse(cachedUser);
-            } else {
-                console.log('Cache miss!');
-                const res = await client.query('SELECT * FROM users WHERE email = $1', [email]);
-                await c.env.USERCACHE.put(email, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
-                cachedUser = JSON.parse(await c.env.USERCACHE.get(email));
-                return cachedUser;
-            }
-        } finally {
-            client.release();
+            let { results } = await c.env.DB.prepare(`
+            SELECT * FROM users WHERE email = "${email}"
+          `).all()
+
+
+            console.log(await results[0]);
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
         }
-
     };
 
     getUserAccountID = async (accountId: string, c: any) => {
-
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
-
         try {
 
-            let cachedUser = await c.env.USERCACHE.get(accountId);
+            let user;
 
-            if (cachedUser) {
-                console.log('Cache hit!');
-                return JSON.parse(cachedUser);
-            } else {
-                console.log('Cache miss!');
-                const res = await client.query('SELECT * FROM users WHERE accountid = $1', [accountId]);
-                await c.env.USERCACHE.put(accountId, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
-                cachedUser = await JSON.parse(c.env.USERCACHE.get(accountId));
-                return cachedUser;
-            }
-        } finally {
-            client.release();
+            let { results } = await c.env.DB.prepare(`
+            SELECT * FROM users WHERE accountid = "${accountId}"
+          `).all()
+
+
+            console.log(await results[0]);
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
         }
-
     };
 
     getUserUsername = async (username: string, c: Context) => {
 
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
-
         try {
 
-            let cachedUser = await c.env.USERCACHE.get(username);
+            let user;
 
-            if (cachedUser) {
-                console.log('Cache hit!');
-                return JSON.parse(cachedUser);
-            } else {
-                console.log('Cache miss!');
-                const res = await client.query('SELECT * FROM users WHERE username = $1', [username]);
-                await c.env.USERCACHE.put(username, JSON.stringify(res.rows[0]), { expirationTtl: 600 });
-                cachedUser = await JSON.parse(c.env.USERCACHE.get(username));
-                return cachedUser;
-            }
-        } finally {
-            client.release();
+            let { results } = await c.env.DB.prepare(`
+            SELECT * FROM users WHERE username = "${username}"
+          `).all()
+
+
+            console.log(await results[0]);
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
         }
-
     };
 
-    updateUserEmail = async (email: string, key: string, value: string) => {
-
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
+    updateUserEmail = async (email: string, key: string, value: string, c: any) => {
 
         try {
-            const res = await client.query(`UPDATE users SET ${key} = $1 WHERE email = $2`, [value, email]);
-            return res.rows[0];
-        } finally {
-            client.release();
-        }
 
+            let user;
+
+            let { results } = await c.env.DB.prepare(`
+            UPDATE users SET ${key} = $1 WHERE email = "${email}",
+          `).all()
+
+
+            console.log(await results[0]);
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
+        }
     };
 
     getProfile = async (accountId: string, c: any) => {
+        try {
 
-        let cachedProfile = await c.env.PROFILECACHE.get(accountId);
+            let user;
 
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
+            let { results } = await c.env.DB.prepare(`
+            SELECT * FROM profiles
+          `).all()
 
-        if (cachedProfile) {
-            console.log('Cache hit!');
-            return JSON.parse(cachedProfile);
-        } else {
-            console.log('Cache miss!');
-            const res = await client.query('SELECT * FROM profiles WHERE accountid = $1', [accountId]);
-            return res.rows[0];
+            console.log("Tried to get profile");
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
         }
-
     };
 
     getFriends = async (accountId: string, c: any) => {
-
-        const pool = new Pool({ connectionString: DATABASE_URL });
-        const client = await pool.connect();
-
         try {
-            const res = await client.query('SELECT * FROM friends WHERE accountid = $1', [accountId]);
-            return res.rows[0];
-        } finally {
-            client.release();
+
+            let user;
+
+            let { results } = await c.env.DB.prepare(`
+            SELECT * FROM friends
+          `).all()
+
+
+            console.log(await results[0]);
+
+            //user = JSON.parse(await results[0]);
+            return results[0];
+        } catch (err) {
+            console.log(err);
         }
-
-    }
-
+    };
 }
 
 export default new db();

@@ -116,7 +116,8 @@ function createAccess(user: any, clientId: string, grant_type: string, deviceId:
 		"ic": true,
 		"jti": MakeID().replace(/-/ig, ""),
 		"creation_date": new Date(),
-		"hours_expire": expiresIn
+		"nbf": Math.floor(Date.now() / 1000) + (1 * (30)),
+		"exp": Math.floor(Date.now() / 1000) + (1 * 60)
 	}, JWT_SECRET);
 
 	return accessToken;
@@ -131,7 +132,8 @@ function createRefresh(user: any, clientId: string, grant_type: string, deviceId
 		"am": grant_type,
 		"jti": MakeID().replace(/-/ig, ""),
 		"creation_date": new Date(),
-		"hours_expire": expiresIn
+		"nbf": Math.floor(Date.now() / 1000) + (1 * (30)),
+		"exp": Math.floor(Date.now() / 1000) + (1 * 60)
 	}, JWT_SECRET);
 
 	refreshTokens.push({ accountId: user.accountId, token: `eg1~${refreshToken}` });
@@ -167,7 +169,8 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 		"am": grant_type,
 		"jti": MakeID().replace(/-/ig, ""),
 		"creation_date": new Date(),
-		"hours_expire": expiresIn
+		"nbf": Math.floor(Date.now() / 1000) + (1 * (30)),
+		"exp": Math.floor(Date.now() / 1000) + (1 * 60)
 	}, JWT_SECRET));
 
 	clientTokens.push({ ip: ip, token: `eg1~${clientToken}` });
@@ -213,13 +216,9 @@ app.get('/:email', async (c) => {
 
 	const email: string = c.req.param('email');
 
-	let { results } = await c.env.DB.prepare(`
-    SELECT * FROM users WHERE email = "${email}"
-  `).all()
+	const result = await db.getFriends("caa50335-4fb7-43dd-ba5b-1a72730f5141", c);
 
-	results = results[0]
-
-	return c.json(results)
+	return c.json(result)
 
 });
 
@@ -1792,7 +1791,7 @@ app.get("/fortnite/api/storefront/v2/catalog", async (c) => {
 	const cachedShop = await c.env.CACHE.get("shop");
 	if (cachedShop) {
 		const parsedShop = JSON.parse(cachedShop);
-		return c.json(parsedShop, 200)
+		return c.json(parsedShop)
 	} else {
 		console.log('Shop not found in cache')
 
