@@ -1,7 +1,5 @@
 import { Context, Hono } from 'hono'
 
-const app = new Hono()
-
 //@ts-ignore
 import { JSONRequest } from '@worker-tools/json-fetch';
 import jwt from '@tsndr/cloudflare-worker-jwt';
@@ -177,6 +175,7 @@ function createClient(clientId: string | undefined, grant_type: string, ip: stri
 	return clientToken;
 }
 
+const app = new Hono()
 
 
 //Routes
@@ -210,54 +209,25 @@ app.notFound((c) => {
 	return c.text('This Nexus route could not be found', 404)
 })
 
+app.get('/:email', async (c) => {
+
+	const email: string = c.req.param('email');
+
+	let { results } = await c.env.DB.prepare(`
+    SELECT * FROM users WHERE email = "${email}"
+  `).all()
+
+	results = results[0]
+
+	return c.json(results)
+
+});
+
 app.get('/health', (c) => {
 	return c.json({
 		status: 'ok',
 	})
 })
-
-app.get('/create/:user/:pass', async (c) => {
-
-	const pool = new Pool({ connectionString: DATABASE_URL });
-	const client = await pool.connect();
-
-	const user = c.req.param('user');
-	const pass = c.req.param('pass');
-
-	const genUUID: any = MakeID().replace(/-/ig, "");
-
-	const userResult = await client.query(`
-      INSERT INTO users (created, discordId, accountId, username, username_lower, email, password)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, created, discordId, accountId, username, username_lower, email, reports, donator, affiliate, stats
-    `, [new Date(), "327892412544581633", genUUID, 'Zetax', 'zetax', 'hazy-flower-03@icloud.com', pass]);
-
-	const userId = userResult.rows[0].id;
-
-	const profileResult = await client.query(`
-      INSERT INTO profiles (created, accountId, profiles)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [new Date(), genUUID, {}]);
-
-	const profileId = profileResult.rows[0].id;
-
-	const friendsResult = await client.query(`
-      INSERT INTO friends (created, accountId, list)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [new Date(), genUUID, { accepted: [], incoming: [], outgoing: [], blocked: [] }]);
-
-	const friendsId = friendsResult.rows[0].id;
-
-	return c.json({
-		status: 'ok',
-		userId: userId,
-		profileId: profileId,
-		friendsId: friendsId,
-	})
-
-});
 
 app.get('/getuser/:username', async (c) => {
 

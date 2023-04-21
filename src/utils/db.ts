@@ -1,7 +1,7 @@
 import { Pool } from '@neondatabase/serverless';
 import { Context } from 'hono';
 
-const DATABASE_URL: string = c.env,DATBASE_URL;
+const DATABASE_URL: string = "postgres://Finninn:0cwyFrTxnY7K@ep-restless-night-902408.eu-central-1.aws.neon.tech/Nexus";
 
 class db {
 

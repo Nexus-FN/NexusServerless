@@ -14,3 +14,8 @@ kv_namespaces = [
 binding = 'NXBUCKET' # <~ valid JavaScript variable name
 bucket_name = 'nexusserverless'
 preview_bucket_name = 'nexusserverlesspreview'
+
+[[d1_databases]]
+binding = "DB" # i.e. available in your Worker on env.DB
+database_name = "nexus"
+database_id = "9d8cdc9d-f6ab-4e3f-ba3d-03bdab70f7a7"
