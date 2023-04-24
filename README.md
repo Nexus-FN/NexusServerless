@@ -12,8 +12,10 @@ Nexus Serverless is a serverless backend based on the popular Fortnite backend "
 
 Todo:
 
-- Fix random logout errors (99% because of local token storage as it's a worker and can't have consistent variables to store the array of tokens)
+- Fix random login errors (99% sure it's because of local token storage as it's a worker and can't have consistent variables to store the array of tokens)
 - Fix it being slow as fuck
+- Fix MCP!!!
+- Use Planetscale or D1 instead of Neon
 
 If you can help fix these issues, please message me on Discord or just create a pull request
 
