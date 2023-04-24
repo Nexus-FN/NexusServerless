@@ -1,25 +1,18 @@
 import { Pool } from "@neondatabase/serverless";
 import { Context } from "hono";
-
-const DATABASE_URL: string =
-    "postgres://Finninn:0cwyFrTxnY7K@ep-restless-night-902408.eu-central-1.aws.neon.tech/Nexus";
-
 class db {
 
     getUserEmail = async (email: string, c: any) => {
         try {
 
             let user;
+            const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+            const { rows: [{ now }] } = await pool.query(`SELECT * FROM users WHERE email = "${email}"`);
 
-            let { results } = await c.env.DB.prepare(`
-            SELECT * FROM users WHERE email = "${email}"
-          `).all()
-
-
-            console.log(await results[0]);
+            console.log(await rows[0]);
 
             //user = JSON.parse(await results[0]);
-            return results[0];
+            return rows[0];
         } catch (err) {
             console.log(err);
         }
@@ -30,12 +23,12 @@ class db {
 
             let user;
 
-            let { results } = await c.env.DB.prepare(`
-            SELECT * FROM users WHERE accountid = "${accountId}"
-          `).all()
+
+            const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+            const { rows: [{ now }] } = await pool.query(`SELECT * FROM users WHERE accountid = "${accountId}"`);
 
 
-            console.log(await results[0]);
+            console.log(await rows[0]);
 
             //user = JSON.parse(await results[0]);
             return results[0];
@@ -50,15 +43,15 @@ class db {
 
             let user;
 
-            let { results } = await c.env.DB.prepare(`
-            SELECT * FROM users WHERE username = "${username}"
-          `).all()
+
+            const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+            const { rows: [{ now }] } = await pool.query(`SELECT * FROM users WHERE username = "${username}"`);
 
 
-            console.log(await results[0]);
+            console.log(await rows[0]);
 
             //user = JSON.parse(await results[0]);
-            return results[0];
+            return rows[0];
         } catch (err) {
             console.log(err);
         }
@@ -70,15 +63,15 @@ class db {
 
             let user;
 
-            let { results } = await c.env.DB.prepare(`
-            UPDATE users SET ${key} = $1 WHERE email = "${email}",
-          `).all()
+
+          const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+          const { rows: [{ now }] } = await pool.query(`UPDATE users SET ${key} = $1 WHERE email = "${email}"`);
 
 
-            console.log(await results[0]);
+            console.log(await rows[0]);
 
             //user = JSON.parse(await results[0]);
-            return results[0];
+            return rows[0];
         } catch (err) {
             console.log(err);
         }
@@ -89,14 +82,13 @@ class db {
 
             let user;
 
-            let { results } = await c.env.DB.prepare(`
-            SELECT * FROM profiles
-          `).all()
+            const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+          const { rows: [{ now }] } = await pool.query(`SELECT * FROM profiles WHERE accountid = "${accountId}"`)
 
             console.log("Tried to get profile");
 
             //user = JSON.parse(await results[0]);
-            return results[0];
+            return rows[0];
         } catch (err) {
             console.log(err);
         }
@@ -107,15 +99,14 @@ class db {
 
             let user;
 
-            let { results } = await c.env.DB.prepare(`
-            SELECT * FROM friends
-          `).all()
+            const pool = new Pool({ connectionString: c.env.DATABASE_URL });
+            const { rows: [{ now }] } = await pool.query(`SELECT * FROM friends WHERE accountid = "${accountId}"`)
 
 
-            console.log(await results[0]);
+            console.log(await rows[0]);
 
             //user = JSON.parse(await results[0]);
-            return results[0];
+            return rows[0];
         } catch (err) {
             console.log(err);
         }
