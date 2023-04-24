@@ -8,7 +8,7 @@
 
 https://discord.gg/dpKesqXuEz
 
-Nexus Serverless is a serverless backend based on the popular Fortnite backend "LawinServerV2", modified to work with Cloudflare workers. It's currently in [![Version - ALPHA](https://img.shields.io/badge/Version-ALPHA-ed3939)](https://) and not suitable for production usage.
+Nexus Serverless is a serverless backend based on the popular Fortnite backend "LawinServerV2", modified to work with Cloudflare workers. It's currently in [![Version - ALPHA](https://img.shields.io/badge/Version-ALPHA-ed3939)](https://) and not suitable for production usage. Why would you use this over normal Lawin? Well, edge functions have the advantage of always executing near the user who is requesting the route. This can be combined well with edge databases or D1 if you're using Cloudflare workers. I am planning to fully switch to D1 as it has the benefits of great performance and costing next to nothing.
 
 Todo:
 
