@@ -212,16 +212,6 @@ app.notFound((c) => {
 	return c.text('This Nexus route could not be found', 404)
 })
 
-app.get('/:email', async (c) => {
-
-	const email: string = c.req.param('email');
-
-	const result = await db.getFriends("caa50335-4fb7-43dd-ba5b-1a72730f5141", c);
-
-	return c.json(result)
-
-});
-
 app.get('/health', (c) => {
 	return c.json({
 		status: 'ok',
@@ -241,22 +231,6 @@ app.get('/getuser/:username', async (c) => {
 	return c.json(
 		user
 	)
-
-});
-
-app.get('/vaultmp', async (c) => {
-
-	//@ts-expect-error
-	const shouldWork: boolean = await c.env.TOKENS.get('shouldWork');
-	if (shouldWork) {
-		return c.json({
-			status: 'ok',
-		})
-	} else {
-		return c.json({
-			status: 'error',
-		})
-	}
 
 });
 
