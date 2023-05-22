@@ -5,7 +5,7 @@
   },
   "dependencies": {
     "@cfworker/uuid": "^1.12.4",
-    "@neondatabase/serverless": "^0.4.1",
+    "@neondatabase/serverless": "^0.4.5",
     "@neuledge/engine": "^0.2.1",
     "@tsndr/cloudflare-worker-jwt": "^2.2.1",
     "@worker-tools/shed": "^0.1.0-pre.10",
